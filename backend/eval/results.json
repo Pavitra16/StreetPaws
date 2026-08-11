@@ -1,0 +1,26 @@
+{
+  "ranAt": "2026-08-10T18:55:08.183Z",
+  "dataset": "DogFaceNet_224resized (Zenodo 12578449, CC-BY-4.0)",
+  "queries": 120,
+  "gallery": 500,
+  "chanceP1": 0.002,
+  "bestModel": "clip-vit-base-patch16",
+  "results": {
+    "clip-vit-base-patch16": {
+      "n": 120,
+      "precisionAt1": 0.49166666666666664,
+      "recallAt5": 0.6833333333333333,
+      "recallAt10": 0.7333333333333333,
+      "mrr": 0.5814995886228757,
+      "medianRank": 2
+    },
+    "clip-vit-base-patch32": {
+      "n": 120,
+      "precisionAt1": 0.48333333333333334,
+      "recallAt5": 0.6583333333333333,
+      "recallAt10": 0.6916666666666667,
+      "mrr": 0.5538833006880092,
+      "medianRank": 2
+    }
+  }
+}

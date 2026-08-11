@@ -1,0 +1,33 @@
+@import 'tailwindcss';
+@import 'leaflet/dist/leaflet.css';
+
+@theme {
+  --color-brand-50: #fef6ee;
+  --color-brand-100: #fdead7;
+  --color-brand-200: #fad1ae;
+  --color-brand-300: #f6b17a;
+  --color-brand-400: #f18744;
+  --color-brand-500: #ed6820;
+  --color-brand-600: #de4e16;
+  --color-brand-700: #b83a14;
+  --color-brand-800: #932f18;
+  --color-brand-900: #772917;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-stone-50 text-stone-900 antialiased;
+}
+
+/* Leaflet sits inside rounded containers throughout the app; without this the
+   tile layer paints over the corners. */
+.leaflet-container {
+  border-radius: inherit;
+  font: inherit;
+  z-index: 0;
+}

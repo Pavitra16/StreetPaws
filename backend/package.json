@@ -1,0 +1,41 @@
+{
+  "name": "streetdog-backend",
+  "version": "1.0.0",
+  "description": "Street dog rescue platform - API server",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "seed": "node src/scripts/seed.js",
+    "vector-index": "node src/scripts/createVectorIndex.js",
+    "embed-backfill": "node src/scripts/backfillEmbeddings.js",
+    "create-admin": "node src/scripts/createAdmin.js",
+    "eval:pairs": "node eval/buildPairs.js",
+    "eval:embed": "node eval/embedPairs.js",
+    "eval:score": "node eval/score.js",
+    "seed:accounts": "node src/scripts/seedAccounts.js",
+    "seed:all": "npm run seed && npm run seed:accounts -- --reset-passwords",
+    "seed:reanalyze": "node src/scripts/reanalyzeSeed.js"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "@google/genai": "^2.16.0",
+    "@huggingface/transformers": "^4.2.0",
+    "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.10.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.6.2",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.9.1",
+    "morgan": "^1.11.0",
+    "nodemailer": "^9.0.5",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
