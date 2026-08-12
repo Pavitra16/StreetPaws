@@ -48,6 +48,15 @@ export default function DogCard({ report, selected, onHover }) {
         <p className="mt-1 truncate text-sm font-semibold text-stone-900">
           {isLost && report.dogName ? `${report.dogName} — ` : ''}
           {breed.text ?? CONDITION_LABEL[report.condition]}
+          {/* A breed search deliberately also returns reports where nobody
+              recorded a breed, because the person who finds a street dog
+              usually does not know one. Saying so keeps that from looking like
+              a broken filter. */}
+          {!breed.text && (
+            <span className="ml-1.5 rounded bg-stone-100 px-1.5 py-0.5 text-[10px] font-medium text-stone-500">
+              breed not recorded
+            </span>
+          )}
         </p>
         <p className={`mt-0.5 line-clamp-2 text-sm ${body.empty ? 'text-stone-400 italic' : 'text-stone-600'}`}>
           {body.generated && (

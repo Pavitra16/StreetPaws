@@ -308,6 +308,14 @@ const ORGS = [
 /* ------------------------------------------------------------------ *
  * Reports
  *
+ * Four of these deliberately have no breed at all. Someone who finds a street
+ * dog often has no idea what breed it is, and leaving the field blank is the
+ * honest answer — so the seed has to contain that case, or the blank-breed
+ * search rule and the "breed not recorded" label are never exercised by anyone
+ * clicking around the site.
+ *
+ * The four lost reports all keep a breed: an owner knows their own dog.
+ *
  * `condition` is what the person on the street selected. No aiAnalysis is
  * written: these have not been through the vision model, and inventing a
  * breed the model never produced is how the earlier seed ended up captioning
@@ -349,19 +357,19 @@ const REPORTS = [
     reporter: 'Gaurav Menon', phone: '+91 98713 44508', hours: 9, status: 'assigned' },
 
   // --- open, awaiting a rescuer ---
-  { lat: 28.5688, lng: 77.2392, area: 'Lajpat Nagar Central Market', condition: 'critical', breedGuess: 'Indian Pariah',
+  { lat: 28.5688, lng: 77.2392, area: 'Lajpat Nagar Central Market', condition: 'critical', breedGuess: '',
     description: 'Hind leg looks broken, dragging it. Trying to hide behind the bins.',
     reporter: 'Ishaan Kohli', phone: '+91 90132 66741', hours: 1, status: 'open' },
   { lat: 28.5276, lng: 77.2118, area: 'Malviya Nagar', condition: 'injured', breedGuess: 'mixed',
     description: 'Wound on the neck, possibly from a collar that grew in. Very nervous.',
     reporter: 'Tara Menon', phone: '+91 97181 22930', hours: 4, status: 'open' },
-  { lat: 28.7521, lng: 77.0498, area: 'Rohini Sector 16', condition: 'sick', breedGuess: 'Indian Pariah',
+  { lat: 28.7521, lng: 77.0498, area: 'Rohini Sector 16', condition: 'sick', breedGuess: '',
     description: 'Coughing badly, discharge from both eyes. Two others nearby look the same.',
     reporter: 'Harpreet Gill', phone: '+91 98991 07723', hours: 11, status: 'open' },
   { lat: 28.5455, lng: 77.1978, area: 'Green Park', condition: 'healthy', breedGuess: 'Labrador mix',
     description: 'Well fed and wearing a worn collar, no tag. Following people around — looks lost.',
     reporter: 'Devika Rao', phone: '+91 99900 51184', hours: 20, status: 'open' },
-  { lat: 28.5934, lng: 77.0421, area: 'Dwarka Sector 12 market', condition: 'sick', breedGuess: 'mixed',
+  { lat: 28.5934, lng: 77.0421, area: 'Dwarka Sector 12 market', condition: 'sick', breedGuess: '',
     description: 'Very lethargic, will not get up for food. Nose is dry and warm.',
     reporter: 'Aditya Naik', phone: '+91 98104 39926', days: 1, status: 'open' },
   { lat: 28.6272, lng: 77.2887, area: 'Preet Vihar', condition: 'injured', breedGuess: 'Indian Pariah',
@@ -370,7 +378,7 @@ const REPORTS = [
   { lat: 28.5192, lng: 77.1554, area: 'Vasant Kunj C Block', condition: 'healthy', breedGuess: 'Indian Pariah',
     description: 'Pregnant, very close to term. Sleeping under the stairwell of C-4.',
     reporter: 'Mohit Tandon', phone: '+91 90993 18475', days: 2, status: 'open' },
-  { lat: 28.6598, lng: 77.2205, area: 'Civil Lines', condition: 'sick', breedGuess: 'mixed',
+  { lat: 28.6598, lng: 77.2205, area: 'Civil Lines', condition: 'sick', breedGuess: '',
     description: 'Swollen face on one side, probably an abscess. Not eating properly.',
     reporter: 'Farhan Ali', phone: '+91 98735 29061', days: 2, status: 'open' },
 

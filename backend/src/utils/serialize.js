@@ -50,6 +50,16 @@ export function serializeReport(report, { revealContact = false, origin = null }
         ? { ai, reporter, direction: ai > reporter ? 'ai_higher' : 'reporter_higher' }
         : null;
   }
+  /**
+   * Whether anyone actually stated a breed.
+   *
+   * A breed search deliberately also returns reports with no breed recorded
+   * (see searchController), so the UI needs to be able to say why a dog that
+   * is plainly not a Beagle turned up in a Beagle search. Without that label
+   * the widened search reads as a bug.
+   */
+  json.breedConfirmed = Boolean(json.breedGuess?.trim() || json.aiAnalysis?.breed?.trim());
+
   if (json.primaryMedia === undefined) {
     json.primaryMedia =
       json.media?.find((m) => m.isPrimary) ??

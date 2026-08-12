@@ -43,6 +43,29 @@ function norm(s) {
   return String(s ?? '').trim().toLowerCase();
 }
 
+/**
+ * Is there anything on both sides worth comparing?
+ *
+ * attributeScore returns a neutral 0.5 when it has nothing to work with, which
+ * is right for that function in isolation — absence of evidence should not be
+ * evidence of absence. But a constant applied to every candidate carries no
+ * information while still consuming a quarter of the score, so the caller needs
+ * to know the difference between "compared and scored 0.5" and "could not
+ * compare at all".
+ */
+export function comparableAttributes(a, b) {
+  const A = a ?? {};
+  const B = b ?? {};
+  const named = (v) => Boolean(norm(v)) && norm(v) !== 'unknown';
+
+  return Boolean(
+    (named(A.breed) && named(B.breed)) ||
+      (A.colors?.length && B.colors?.length) ||
+      (named(A.sizeEstimate) && named(B.sizeEstimate)) ||
+      (A.distinctiveMarks?.length && B.distinctiveMarks?.length)
+  );
+}
+
 /** Overlap of colours, breed, size and distinctive marks. */
 export function attributeScore(a, b) {
   const A = a ?? {};
@@ -154,19 +177,39 @@ export async function findMatches({
     const candidateCoords = fromPoint(doc.location);
     const distanceKm = origin && candidateCoords ? haversineKm(origin, candidateCoords) : null;
 
-    const visual =
-      queryEmbedding && doc.embedding?.length
-        ? Math.max(0, cosineSimilarity(queryEmbedding, doc.embedding))
-        : 0;
-    const attributes = attributeScore(queryAnalysis, doc.aiAnalysis);
+    const hasVisual = Boolean(queryEmbedding && doc.embedding?.length);
+    const hasAttributes = comparableAttributes(queryAnalysis, doc.aiAnalysis);
+
+    const visual = hasVisual
+      ? Math.max(0, cosineSimilarity(queryEmbedding, doc.embedding))
+      : 0;
+    const attributes = hasAttributes ? attributeScore(queryAnalysis, doc.aiAnalysis) : 0;
     const geo = geoScore(distanceKm);
     const time = timeScore({ lostAt: queryDate, foundAt: doc.occurredAt });
 
-    const score =
-      weights.visual * visual +
-      weights.attributes * attributes +
-      weights.geo * geo +
-      weights.time * time;
+    /**
+     * Score over the signals we actually have, not all four.
+     *
+     * A missing signal used to contribute zero out of its full weight, which
+     * quietly punished every candidate equally: with no stored embeddings the
+     * best possible match capped at 35%, so an owner looking at their own dog
+     * was told "35%" and reasonably concluded it was not them. The ranking was
+     * unaffected — every row lost the same amount — but the number shown to a
+     * person was wrong, and that number is the whole point of showing a score.
+     *
+     * Dividing by the weight actually in play means a score always reads as
+     * "how well did this match on what we could compare", which is a claim the
+     * system can honestly make.
+     */
+    const active = [
+      hasVisual && [weights.visual, visual],
+      hasAttributes && [weights.attributes, attributes],
+      [weights.geo, geo],
+      [weights.time, time],
+    ].filter(Boolean);
+
+    const totalWeight = active.reduce((s, [w]) => s + w, 0);
+    const score = active.reduce((s, [w, v]) => s + w * v, 0) / totalWeight;
 
     return {
       doc,
@@ -175,8 +218,11 @@ export async function findMatches({
       // Per-signal breakdown so the UI can explain WHY something surfaced.
       // An owner scanning twenty tan dogs needs the reason, not just a rank.
       breakdown: {
-        visual: Number(visual.toFixed(3)),
-        attributes: Number(attributes.toFixed(3)),
+        // null, not 0 — "we could not compare this" is a different statement
+        // from "we compared it and it scored nothing", and the UI must not
+        // render the first as though it were the second.
+        visual: hasVisual ? Number(visual.toFixed(3)) : null,
+        attributes: hasAttributes ? Number(attributes.toFixed(3)) : null,
         geo: Number(geo.toFixed(3)),
         time: Number(time.toFixed(3)),
       },
