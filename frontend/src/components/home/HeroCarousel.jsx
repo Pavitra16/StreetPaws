@@ -68,7 +68,11 @@ export default function HeroCarousel() {
 
   return (
     <div
-      className="relative aspect-4/5 overflow-hidden rounded-2xl bg-brand-800 shadow-2xl"
+      /* 4:3 rather than 4:5. The portrait crop set the whole hero's height,
+         pushing the headline and the report button apart far enough that a
+         1280px window could not show them together — which is the one
+         pairing this section exists to make. */
+      className="relative aspect-4/3 overflow-hidden rounded-2xl bg-brand-800 shadow-2xl"
       onMouseEnter={() => setHoverPaused(true)}
       onMouseLeave={() => setHoverPaused(false)}
       onFocusCapture={onFocus}

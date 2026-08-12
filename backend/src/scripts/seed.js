@@ -124,7 +124,9 @@ const ORGS = [
     serviceRadiusKm: 15,
     capacity: 12,
     phone: '+91 98110 42317',
-    email: 'contact@pawsandclawstrust.org',
+    // Real address so alert emails can be demonstrated end to end. Also the
+    // login for this organisation — the seed creates the account from it.
+    email: 'pavitramalhotra7@gmail.com',
     website: 'https://pawsandclawstrust.org',
     specializations: ['injury', 'surgery', 'sterilization'],
     pan: 'AACTP4821K',
@@ -215,7 +217,8 @@ const ORGS = [
     serviceRadiusKm: 6,
     capacity: 3,
     phone: '+91 98737 12206',
-    email: 'rhea.malviya@example.com',
+    // Real address — the independent-rescuer side of the same demo.
+    email: 'pavitramalhotra16260@gmail.com',
     specializations: ['puppies', 'transport'],
     pan: 'BKRPM8214J',
     contactPersonName: 'Rhea Malviya',

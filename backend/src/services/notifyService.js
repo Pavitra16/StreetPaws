@@ -4,11 +4,21 @@ import { sendDogAlert } from './emailService.js';
 import { env } from '../config/env.js';
 
 /**
- * Creates the Alert rows for a report and "delivers" them.
+ * Creates the Alert rows for a report and delivers them.
  *
- * Delivery is currently in-app only: an alert row is the notification, and the
- * organisation dashboard reads them. Email/SMS/WhatsApp slot in at deliver()
- * without touching the fan-out logic.
+ * Two channels, and the distinction matters:
+ *
+ *   in-app — the Alert row itself. Always created, never fails, and is what the
+ *            rescuer console reads. This is the record.
+ *   email  — sent on top, best effort. This is what actually reaches someone
+ *            who is not sitting with the site open, which is every rescuer
+ *            almost all of the time. A send failure must never lose the alert,
+ *            so it is caught and recorded on the row rather than thrown.
+ *
+ * WhatsApp is the channel people in this field really use, but the Business API
+ * needs Meta business verification before a single message can be sent. Email
+ * works today with no approval process, so it carries the load until that
+ * exists; adding WhatsApp later is another branch in deliver() and nothing else.
  *
  * Alerts are also the audit trail. When a rescuer asks why they never heard
  * about a dog two streets away, the row (or its absence) plus the stored

@@ -73,8 +73,8 @@ export default function Home() {
   return (
     <div className="space-y-20 sm:space-y-24">
       {/* ---------------------------------------------------------------- HERO */}
-      <section className="paw-bg-light relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-400 via-brand-600 to-brand-700 px-6 py-14 text-white sm:px-12 sm:py-20">
-        <div className="relative grid items-center gap-10 lg:grid-cols-[1.15fr_1fr]">
+      <section className="paw-bg-light relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-400 via-brand-600 to-brand-700 px-6 py-10 text-white sm:px-12 sm:py-14">
+        <div className="relative grid items-center gap-8 lg:grid-cols-[1.2fr_1fr]">
           <div>
             <Reveal>
               <span className="inline-block rounded-full bg-brand-800 px-3 py-1 text-xs font-semibold tracking-wide">
