@@ -49,20 +49,27 @@ const organizationSchema = new Schema(
     reviewNote: { type: String, trim: true, maxlength: 1000 },
 
     /**
-     * PAN — the identity key for organisations.
+     * PAN — the identity key for every applicant, organisation or individual.
      *
-     * No single NGO registration number works for this: society and trust
-     * numbers are issued per state, so two unrelated NGOs in different states
-     * can legitimately hold the same one. Only Section 8 companies get a
-     * nationally unique CIN, and NGO Darpan IDs exist only for organisations
-     * that registered on that portal.
+     * No NGO registration number works for this: society and trust numbers are
+     * issued per state, so two unrelated NGOs in different states can
+     * legitimately hold the same one. Only Section 8 companies get a nationally
+     * unique CIN, and Darpan IDs exist only for organisations that registered
+     * on that portal.
      *
-     * Every registered entity that files tax has a PAN, it is nationally
-     * unique, and its format is checkable. Stored uppercase so the unique index
-     * cannot be sidestepped with different casing.
+     * PAN is issued once per person and per entity by a single national
+     * authority, its format is checkable, and both individuals and
+     * organisations have one. Stored uppercase so the unique index cannot be
+     * sidestepped with different casing.
+     *
+     * Required of individual rescuers too. They receive donations and are
+     * handed the personal contact details of members of the public, so
+     * "who is this, exactly, and have they applied before" is a fair question
+     * to be able to answer about them as well.
      */
     pan: {
       type: String,
+      required: [true, 'PAN is required'],
       trim: true,
       uppercase: true,
       match: [/^[A-Z]{5}[0-9]{4}[A-Z]$/, 'Enter a valid 10-character PAN, e.g. AABCT1234H'],
@@ -119,8 +126,16 @@ organizationSchema.index(
   }
 );
 
-// One live organisation per PAN. Partial on `$exists` as well as status, so the
-// many private helpers with no PAN do not all collide on null.
+/**
+ * One live applicant per PAN — the constraint that actually stops the same
+ * person or organisation registering twice.
+ *
+ * Still partial on status, for the same reason as the email index: a rejected
+ * or suspended record is kept as history and a rejected applicant may reapply.
+ * The `$exists` clause is retained even though `pan` is now required, because
+ * records created before that rule exist without one and a plain unique index
+ * would collapse them all onto a single null.
+ */
 organizationSchema.index(
   { pan: 1 },
   {
@@ -152,7 +167,17 @@ organizationSchema.statics.operationalFilter = function () {
   return { applicationStatus: 'approved', active: true };
 };
 
+/**
+ * null when the underlying counts were not loaded.
+ *
+ * List queries populate a narrow projection (name, kind, phone, …), which left
+ * both fields undefined and made `undefined < undefined` evaluate to false —
+ * so every organisation was reported as full, including ones with no cases at
+ * all. "Not known here" and "no room" are different answers and the API should
+ * not conflate them.
+ */
 organizationSchema.virtual('hasCapacity').get(function () {
+  if (this.capacity == null || this.activeCaseCount == null) return null;
   return this.activeCaseCount < this.capacity;
 });
 

@@ -2,6 +2,7 @@ import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import PawMark from '../common/PawMark';
 
 /**
  * The rescuer workspace gets its own shell, for the same reason the admin
@@ -58,9 +59,12 @@ export default function RescuerLayout() {
               wordmark drops below sm to make room for it rather than the other
               way round. */}
           <div className="flex min-w-0 items-center gap-2">
-            <span aria-hidden="true">🐕</span>
+            <PawMark className="size-6 text-white" />
             <span className="hidden font-semibold tracking-tight sm:block">StreetPaws</span>
-            <span className="min-w-0 truncate rounded bg-brand-800 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-brand-100">
+            {/* Not uppercased. Organisation names here are real and long —
+                "Sanjay Gandhi Animal Care Centre" in capitals is a wall of
+                letters, and it mangled the casing of names like "demoNGO". */}
+            <span className="min-w-0 truncate rounded bg-brand-800 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-brand-100">
               {organization?.name ?? 'Rescuer'}
             </span>
           </div>

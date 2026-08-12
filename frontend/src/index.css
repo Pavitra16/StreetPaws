@@ -1,17 +1,49 @@
 @import 'tailwindcss';
 @import 'leaflet/dist/leaflet.css';
 
+/**
+ * Soft pink theme.
+ *
+ * The whole palette lives here. Only two colour families carry the theme —
+ * `brand` (151 usages) and `stone` (469) — so overriding both scales re-skins
+ * every page without editing a single component. Red, amber, green and sky are
+ * deliberately left alone: they are semantic, not decorative. See below.
+ */
 @theme {
-  --color-brand-50: #fef6ee;
-  --color-brand-100: #fdead7;
-  --color-brand-200: #fad1ae;
-  --color-brand-300: #f6b17a;
-  --color-brand-400: #f18744;
-  --color-brand-500: #ed6820;
-  --color-brand-600: #de4e16;
-  --color-brand-700: #b83a14;
-  --color-brand-800: #932f18;
-  --color-brand-900: #772917;
+  /* Rose. Kept a shade darker than a pastel would be so that brand-600 on
+     white clears 4.5:1 — it is the background of every primary button. */
+  --color-brand-50: #fff5f7;
+  --color-brand-100: #ffe7ee;
+  --color-brand-200: #ffcedd;
+  --color-brand-300: #ffa5c2;
+  --color-brand-400: #f97ba4;
+  --color-brand-500: #e6477d;
+  --color-brand-600: #cf2f66;
+  --color-brand-700: #ae2455;
+  --color-brand-800: #8f2148;
+  --color-brand-900: #781f40;
+
+  /**
+   * The neutral. Tailwind's stone is a cold blue-grey, which looks like a
+   * different product sitting next to pink. These are the same steps warmed
+   * and tinted towards plum, with contrast checked at every level a component
+   * actually uses for text:
+   *   stone-500 4.98:1 · stone-600 7.49:1 · stone-400 3.10:1 (de-emphasised only)
+   *
+   * stone-900 is also the admin console shell, which is why it is a plum-black
+   * rather than a neutral one.
+   */
+  --color-stone-50: #fdf7f9;
+  --color-stone-100: #faf0f3;
+  --color-stone-200: #f3e3e9;
+  --color-stone-300: #e2cad4;
+  --color-stone-400: #a48c98;
+  --color-stone-500: #7f6a75;
+  --color-stone-600: #61505a;
+  --color-stone-700: #4c3d46;
+  --color-stone-800: #382b33;
+  --color-stone-900: #2a1a22;
+  --color-stone-950: #1a0e14;
 }
 
 html,
@@ -22,6 +54,43 @@ body,
 
 body {
   @apply bg-stone-50 text-stone-900 antialiased;
+}
+
+/**
+ * Tiling paw pattern for the public site.
+ *
+ * An inline SVG data URI rather than an image file: nothing to fetch, nothing
+ * for the bundler to rewrite, and it stays sharp at any density. Sits at ~5.5%
+ * opacity — enough to read as texture, not enough to compete with a Critical
+ * badge in a report list, which is the one thing on the page that must win.
+ *
+ * Applied to the public Layout only. The rescuer console and the admin panel
+ * stay plain: someone triaging injured animals does not need decoration behind
+ * the queue.
+ */
+.paw-bg {
+  position: relative;
+  isolation: isolate;
+}
+
+.paw-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'><g fill='%23cf2f66' fill-opacity='0.055'><g transform='translate(26,32) rotate(-18)'><ellipse cx='0' cy='0' rx='11' ry='9'/><ellipse cx='-13' cy='-12' rx='4.6' ry='6'/><ellipse cx='-4.5' cy='-16.5' rx='4.6' ry='6.2'/><ellipse cx='5' cy='-16' rx='4.6' ry='6.2'/><ellipse cx='13' cy='-10' rx='4.4' ry='5.6'/></g><g transform='translate(130,116) rotate(14)'><ellipse cx='0' cy='0' rx='9' ry='7.4'/><ellipse cx='-10.5' cy='-9.5' rx='3.8' ry='4.9'/><ellipse cx='-3.5' cy='-13.5' rx='3.8' ry='5.1'/><ellipse cx='4.2' cy='-13' rx='3.8' ry='5.1'/><ellipse cx='10.5' cy='-8' rx='3.6' ry='4.6'/></g><g transform='translate(166,26) rotate(-6)'><ellipse cx='0' cy='0' rx='6.4' ry='5.2'/><ellipse cx='-7.4' cy='-6.8' rx='2.7' ry='3.5'/><ellipse cx='-2.4' cy='-9.6' rx='2.7' ry='3.6'/><ellipse cx='3' cy='-9.2' rx='2.7' ry='3.6'/><ellipse cx='7.4' cy='-5.7' rx='2.5' ry='3.2'/></g><g transform='translate(60,146) rotate(28)'><ellipse cx='0' cy='0' rx='7.2' ry='5.9'/><ellipse cx='-8.4' cy='-7.6' rx='3' ry='3.9'/><ellipse cx='-2.8' cy='-10.8' rx='3' ry='4.1'/><ellipse cx='3.4' cy='-10.4' rx='3' ry='4.1'/><ellipse cx='8.4' cy='-6.4' rx='2.9' ry='3.7'/></g></g></svg>");
+  background-size: 200px 200px;
+}
+
+/* Same paws in white, for the hero panel on the home page. */
+.paw-bg-light::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='190' height='190' viewBox='0 0 190 190'><g fill='%23ffffff' fill-opacity='0.10'><g transform='translate(32,40) rotate(-16)'><ellipse cx='0' cy='0' rx='13' ry='10.6'/><ellipse cx='-15' cy='-14' rx='5.4' ry='7'/><ellipse cx='-5' cy='-19.4' rx='5.4' ry='7.3'/><ellipse cx='6' cy='-18.8' rx='5.4' ry='7.3'/><ellipse cx='15' cy='-11.8' rx='5.2' ry='6.6'/></g><g transform='translate(138,130) rotate(20)'><ellipse cx='0' cy='0' rx='9' ry='7.4'/><ellipse cx='-10.5' cy='-9.5' rx='3.8' ry='4.9'/><ellipse cx='-3.5' cy='-13.5' rx='3.8' ry='5.1'/><ellipse cx='4.2' cy='-13' rx='3.8' ry='5.1'/><ellipse cx='10.5' cy='-8' rx='3.6' ry='4.6'/></g></g></svg>");
+  background-size: 190px 190px;
 }
 
 /* Leaflet sits inside rounded containers throughout the app; without this the

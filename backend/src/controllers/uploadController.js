@@ -2,6 +2,9 @@ import { cloudinary, isCloudinaryConfigured } from '../config/cloudinary.js';
 import { env } from '../config/env.js';
 import { asyncHandler, ApiError } from '../middleware/errorHandler.js';
 
+/** Signed, so the client cannot widen it. Comma-separated is Cloudinary's format. */
+const ALLOWED_FORMATS = 'jpg,jpeg,png,webp,heic,mp4,mov,webm';
+
 /**
  * POST /api/uploads/signature
  *
@@ -24,9 +27,15 @@ export const createUploadSignature = asyncHandler(async (req, res) => {
 
   // Every parameter here must also be sent by the client, byte-identical, or
   // Cloudinary rejects the upload with "Invalid Signature".
+  //
+  // allowed_formats is signed rather than merely advertised. This endpoint is
+  // public (see routes/uploads.js), so a signature could be lifted from the
+  // network tab — signing the format list means the worst it can do is put
+  // another photo in our folder, not an arbitrary file of any type.
   const paramsToSign = {
     timestamp,
     folder: env.cloudinary.folder,
+    allowed_formats: ALLOWED_FORMATS,
   };
 
   const signature = cloudinary.utils.api_sign_request(
@@ -38,6 +47,7 @@ export const createUploadSignature = asyncHandler(async (req, res) => {
     signature,
     timestamp,
     folder: env.cloudinary.folder,
+    allowedFormats: ALLOWED_FORMATS,
     apiKey: env.cloudinary.apiKey,
     cloudName: env.cloudinary.cloudName,
     // Client-side guardrails. Cloudinary enforces its own limits too, but

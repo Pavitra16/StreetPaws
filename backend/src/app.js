@@ -1,10 +1,12 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import compression from 'compression';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import mongoose from 'mongoose';
 
-import { env, featureStatus } from './config/env.js';
+import { env, featureStatus, isProd } from './config/env.js';
 import { attachUser } from './middleware/auth.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import searchRouter from './routes/search.js';
@@ -18,6 +20,24 @@ import donationsRouter from './routes/donations.js';
 
 export function createApp() {
   const app = express();
+
+  /**
+   * Render, Railway and Fly all terminate TLS at a proxy and forward with
+   * X-Forwarded-For. Without this, express-rate-limit v8 refuses to start on
+   * the first request (ERR_ERL_UNEXPECTED_X_FORWARDED_FOR) because every client
+   * would otherwise share the proxy's IP and one visitor could exhaust the
+   * limit for everyone. `secure` cookies depend on it too.
+   *
+   * 1, not `true`: trusting every hop lets a client spoof its own IP by setting
+   * the header, which would defeat the rate limiter it is meant to fix.
+   */
+  if (isProd) app.set('trust proxy', 1);
+
+  // Sensible security headers. contentSecurityPolicy is off because this app
+  // serves only JSON — the CSP that matters belongs to whoever hosts the
+  // frontend, and a default-src policy here would do nothing but confuse.
+  app.use(helmet({ contentSecurityPolicy: false }));
+  app.use(compression());
 
   app.use(cors({ origin: env.clientOrigin, credentials: true }));
   /**
