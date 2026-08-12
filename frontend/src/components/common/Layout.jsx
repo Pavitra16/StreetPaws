@@ -1,5 +1,6 @@
 import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/auth';
+import PawMark from './PawMark';
 
 const PUBLIC_TABS = [
   { to: '/report', label: 'Report a Dog' },
@@ -34,14 +35,16 @@ export default function Layout() {
   const signOut = () => logout.mutate(undefined, { onSuccess: () => navigate('/') });
 
   return (
-    <div className="flex min-h-full flex-col">
+    // paw-bg is on the public shell only — the rescuer console and admin panel
+    // stay plain (see index.css).
+    <div className="paw-bg flex min-h-full flex-col">
       <header className="sticky top-0 z-20 border-b border-stone-200 bg-white/90 backdrop-blur">
         {/* Two rows below lg. Letting a single flex row wrap put one tab on its
             own line at ~800px, which looked broken. */}
         <div className="mx-auto max-w-6xl px-4 py-3">
           <div className="flex items-center justify-between gap-4">
             <Link to="/" className="flex shrink-0 items-center gap-2 text-lg font-semibold tracking-tight">
-              <span aria-hidden="true">🐕</span>
+              <PawMark className="size-8" plate />
               <span>StreetPaws</span>
             </Link>
 

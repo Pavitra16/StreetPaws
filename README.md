@@ -112,8 +112,8 @@ cp backend/.env.example backend/.env    # fill in the values
 npm install --prefix backend
 npm install --prefix frontend
 
-npm run seed:all --prefix backend       # ~20 reports, 5 organisations, logins
-npm run dev --prefix backend            # :4000
+npm run seed --prefix backend           # 21 reports, 9 organisations, logins
+npm run dev --prefix backend            # :5000
 npm run dev --prefix frontend           # :5173
 ```
 

@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 export default function MediaUploader({ uploader }) {
   const { items, addFiles, remove, isUploading } = uploader;
   const inputRef = useRef(null);
+  const cameraRef = useRef(null);
   const [dragging, setDragging] = useState(false);
 
   const onDrop = (e) => {
@@ -36,21 +37,57 @@ export default function MediaUploader({ uploader }) {
           A clear photo of the whole dog helps most. Photos up to 10 MB, video up to 60 MB.
         </p>
 
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="mt-4 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
-        >
-          Choose files
-        </button>
+        {/**
+          * Two buttons, two inputs.
+          *
+          * `capture` is not a hint — a browser that honours it opens the camera
+          * and offers nothing else, so a single input carrying it silently
+          * removed the ability to pick an existing photo. Someone who already
+          * photographed the dog, or who is filing the report later from home,
+          * had no way through.
+          *
+          * The camera button is shown on coarse-pointer devices only. That is a
+          * capability query rather than a screen-width guess: a narrow desktop
+          * window is not a phone, and a tablet with a camera is.
+          */}
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => cameraRef.current?.click()}
+            className="hidden rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 [@media(pointer:coarse)]:inline-flex"
+          >
+            📷 Take a photo
+          </button>
 
-        {/* capture="environment" opens the rear camera directly on a phone,
-            which is how most of these reports will actually be made. */}
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 [@media(pointer:coarse)]:bg-white [@media(pointer:coarse)]:text-brand-700 [@media(pointer:coarse)]:ring-1 [@media(pointer:coarse)]:ring-brand-300"
+          >
+            <span className="[@media(pointer:coarse)]:hidden">Choose files</span>
+            <span className="hidden [@media(pointer:coarse)]:inline">Choose from gallery</span>
+          </button>
+        </div>
+
+        {/* Opens the rear camera directly. Most of these reports are made
+            standing in front of the dog. */}
+        <input
+          ref={cameraRef}
+          type="file"
+          accept="image/*,video/*"
+          capture="environment"
+          hidden
+          onChange={(e) => {
+            addFiles(e.target.files);
+            e.target.value = '';
+          }}
+        />
+
+        {/* No `capture` — the gallery, camera roll or file browser. */}
         <input
           ref={inputRef}
           type="file"
           accept="image/*,video/*"
-          capture="environment"
           multiple
           hidden
           onChange={(e) => {

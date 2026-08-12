@@ -10,7 +10,15 @@ const SIGNALS = [
 ];
 
 function Bar({ value }) {
-  const pct = Math.round((value ?? 0) * 100);
+  /**
+   * A null signal was never compared — that is not the same as scoring zero,
+   * and an empty progress bar reads as "no resemblance at all". Say so instead.
+   */
+  if (value == null) {
+    return <span className="text-[11px] italic text-stone-400">not compared</span>;
+  }
+
+  const pct = Math.round(value * 100);
   return (
     <div className="flex items-center gap-2">
       <div className="h-1.5 w-16 overflow-hidden rounded-full bg-stone-200">
@@ -24,6 +32,8 @@ function Bar({ value }) {
 export default function MatchResultCard({ result, rank }) {
   const b = result.matchBreakdown ?? {};
   const overall = Math.round((result.matchScore ?? 0) * 100);
+  // Did anything about the animal itself get compared, or only where and when?
+  const comparedAppearance = b.visual != null || b.attributes != null;
   const body = reportText(result);
 
   return (
@@ -52,9 +62,21 @@ export default function MatchResultCard({ result, rank }) {
                 {result.location?.city ? ` · ${result.location.city}` : ''}
               </p>
             </div>
-            <span className="shrink-0 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-700 ring-1 ring-inset ring-brand-600/20">
-              {overall}%
-            </span>
+            {/* The percentage has to state its own basis. Scored over the
+                signals actually available, a dog compared only on location and
+                time can reach 90% — which, unqualified, tells an owner they
+                have found their dog when nothing about the animal was
+                compared at all. */}
+            <div className="shrink-0 text-right">
+              <span className="inline-block rounded-full bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-700 ring-1 ring-inset ring-brand-600/20">
+                {overall}%
+              </span>
+              {!comparedAppearance && (
+                <p className="mt-1 max-w-24 text-[10px] leading-tight text-amber-700">
+                  on location &amp; time only
+                </p>
+              )}
+            </div>
           </div>
 
           <p className={`mt-1.5 line-clamp-2 text-sm ${body.empty ? 'text-stone-400 italic' : 'text-stone-600'}`}>
@@ -83,7 +105,9 @@ export default function MatchResultCard({ result, rank }) {
 
       <div className="mt-3 flex items-center justify-between gap-3 border-t border-stone-100 pt-3">
         <p className="text-xs text-stone-400">
-          A ranking, not a confirmation — check the photo yourself.
+          {comparedAppearance
+            ? 'A ranking, not a confirmation — check the photo yourself.'
+            : 'Nothing about this dog’s appearance was compared — only where and when it was seen.'}
         </p>
         <Link
           to={`/reports/${result.id}`}

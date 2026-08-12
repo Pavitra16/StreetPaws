@@ -71,7 +71,7 @@ export default function OrgRegister() {
           website: form.website || undefined,
           registrationNumber: form.registrationNumber || undefined,
           contactPersonName: form.contactPersonName || undefined,
-          pan: form.pan || undefined,
+          pan: form.pan,
           darpanId: form.darpanId || undefined,
           lat: place.lat,
           lng: place.lng,
@@ -111,7 +111,7 @@ export default function OrgRegister() {
     form.phone.trim() &&
     form.email.trim() &&
     place &&
-    (form.kind !== 'ngo' || /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(form.pan));
+    /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(form.pan);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -158,21 +158,23 @@ export default function OrgRegister() {
           </Field>
         </div>
 
-        {form.kind === 'ngo' && (
-          <Field
-            label="PAN"
-            error={errors.pan}
-            hint="Your organisation’s 10-character PAN, e.g. AABCT1234H. We use this to check you are not already registered — society and trust numbers are issued per state, so they are not unique across India."
-          >
-            <input
-              value={form.pan}
-              onChange={(e) => setForm((f) => ({ ...f, pan: e.target.value.toUpperCase() }))}
-              maxLength={10}
-              placeholder="AABCT1234H"
-              className={`${inputCls} font-mono uppercase`}
-            />
-          </Field>
-        )}
+        <Field
+          label="PAN"
+          error={errors.pan}
+          hint={
+            form.kind === 'ngo'
+              ? 'Your organisation’s 10-character PAN, e.g. AABCT1234H. We use it to check you are not already registered — society and trust numbers are issued per state, so they are not unique across India.'
+              : 'Your own 10-character PAN, e.g. ABCPK1234H. Rescuers receive donations and see reporters’ phone numbers, so we verify each one is a distinct person. It is shown only to administrators.'
+          }
+        >
+          <input
+            value={form.pan}
+            onChange={(e) => setForm((f) => ({ ...f, pan: e.target.value.toUpperCase() }))}
+            maxLength={10}
+            placeholder={form.kind === 'ngo' ? 'AABCT1234H' : 'ABCPK1234H'}
+            className={`${inputCls} font-mono uppercase`}
+          />
+        </Field>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field

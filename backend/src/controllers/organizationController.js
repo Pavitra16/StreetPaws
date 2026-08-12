@@ -28,22 +28,16 @@ export const createOrgSchema = z.object({
   contactPersonName: z.string().trim().max(120).optional(),
   yearsActive: z.coerce.number().min(0).max(100).optional(),
 
+  // Required of everyone. It is the only identifier that is nationally unique
+  // for both an organisation and an individual, so it is what "you have already
+  // registered" can actually be checked against.
   pan: z
-    .string()
+    .string({ required_error: 'PAN is required' })
     .trim()
     .toUpperCase()
-    .regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, 'Enter a valid 10-character PAN, e.g. AABCT1234H')
-    .optional()
-    .or(z.literal('')),
+    .regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, 'Enter a valid 10-character PAN, e.g. AABCT1234H'),
   darpanId: z.string().trim().toUpperCase().max(40).optional().or(z.literal('')),
-})
-  // Required for organisations, not for individuals: demanding a personal PAN
-  // from a volunteer is a disproportionate ask, and their phone number is the
-  // identity key instead.
-  .refine((d) => d.kind !== 'ngo' || Boolean(d.pan), {
-    message: 'PAN is required for organisations — it is how we confirm you are not already registered',
-    path: ['pan'],
-  });
+});
 
 export const orgsNearSchema = z.object({
   lat: z.coerce.number().min(-90).max(90),
@@ -73,16 +67,16 @@ export const applyAsOrganization = asyncHandler(async (req, res) => {
     ...live,
     $or: [
       { email: b.email },
-      ...(b.pan ? [{ pan: b.pan.toUpperCase() }] : []),
+      { pan: b.pan.toUpperCase() },
       ...(b.phone ? [{ phone: b.phone }] : []),
     ],
   });
 
   if (clash) {
     const already = clash.applicationStatus === 'pending' ? 'awaiting review' : 'already registered';
-    if (b.pan && clash.pan === b.pan.toUpperCase()) {
+    if (clash.pan === b.pan.toUpperCase()) {
       throw ApiError.conflict(
-        `An organisation with this PAN is ${already}. If this is you, sign in or use “Forgot password?”.`
+        `An application with this PAN is ${already}. If this is you, sign in or use “Forgot password?”.`
       );
     }
     if (clash.email === b.email) {

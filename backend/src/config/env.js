@@ -66,6 +66,15 @@ export function assertRequiredEnv() {
   // something to default to a placeholder.
   if (!env.auth.jwtSecret) missing.push('JWT_SECRET');
 
+  /**
+   * clientOrigin defaults to localhost so development needs no setup. In
+   * production that default is worse than useless: CORS would reject every
+   * browser request, and the failure surfaces as a generic network error in
+   * the console rather than anything pointing at configuration. Fail at boot
+   * instead, where the message can say what is wrong.
+   */
+  if (isProd && !process.env.CLIENT_ORIGIN) missing.push('CLIENT_ORIGIN');
+
   if (missing.length) {
     throw new Error(
       `Missing required environment variable(s): ${missing.join(', ')}. ` +

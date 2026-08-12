@@ -36,10 +36,28 @@ export const searchNear = asyncHandler(async (req, res) => {
   if (q.minUrgency) filter.effectiveUrgency = { $gte: q.minUrgency };
 
   if (q.breed) {
-    // Match either the AI's read of the photo or what the owner typed, so a
-    // "lost Labrador" report is findable before analysis has run.
+    /**
+     * A breed search also returns reports with no breed recorded.
+     *
+     * The person who finds a street dog is usually a passer-by who has no idea
+     * what breed it is, and leaving the field blank is the honest answer. If
+     * those reports are filtered out, an owner searching for their Beagle never
+     * sees the one report that was actually their dog.
+     *
+     * The trade is deliberate and one-sided: a few extra dogs in the results
+     * costs a moment of scrolling, while hiding the right one costs the dog.
+     * Recall over precision. Results carry `breedConfirmed: false` so the UI
+     * can label why a dog with no stated breed appeared in a breed search.
+     */
     const rx = new RegExp(escapeRegex(q.breed), 'i');
-    filter.$or = [{ 'aiAnalysis.breed': rx }, { breedGuess: rx }];
+    // `$in: [null, '']` also matches documents where the field is absent, so
+    // this one clause covers blank, empty-string and never-set alike.
+    const noBreed = [null, ''];
+    filter.$or = [
+      { 'aiAnalysis.breed': rx },
+      { breedGuess: rx },
+      { breedGuess: { $in: noBreed }, 'aiAnalysis.breed': { $in: noBreed } },
+    ];
   }
 
   if (q.from || q.to) {
@@ -55,14 +73,27 @@ export const searchNear = asyncHandler(async (req, res) => {
   }[q.sort];
 
   const skip = (q.page - 1) * q.limit;
+
+  /**
+   * Sorting happens in memory for two cases.
+   *
+   * Distance, because $geoWithin does not order by distance and $near cannot be
+   * combined with skip reliably at scale.
+   *
+   * A breed search, because reports with a confirmed breed must rank above the
+   * blank-breed ones the filter deliberately lets through. "Breed was recorded"
+   * is derived from two fields rather than stored, so there is nothing for
+   * Mongo to sort on without an aggregation stage — and at a city-sized radius
+   * sorting the page here is both correct and fast.
+   */
+  const breedFiltered = Boolean(q.breed);
+  const sortInMemory = !sortSpec || breedFiltered;
+
   const [rawTotal, docs] = await Promise.all([
     DogReport.countDocuments(filter),
-    sortSpec
-      ? DogReport.find(filter).sort(sortSpec).skip(skip).limit(q.limit)
-      : // $geoWithin does not order by distance, and $near cannot be combined
-        // with skip reliably at scale — for a city-sized radius, sorting the
-        // page in memory is both correct and fast.
-        DogReport.find(filter).limit(500),
+    sortInMemory
+      ? DogReport.find(filter).limit(500)
+      : DogReport.find(filter).sort(sortSpec).skip(skip).limit(q.limit),
   ]);
 
   /**
@@ -75,8 +106,28 @@ export const searchNear = asyncHandler(async (req, res) => {
    */
   let results = docs.map((d) => serializeReport(d, { revealContact: false, origin }));
 
-  if (!sortSpec) {
-    results.sort((a, b) => a.distanceKm - b.distanceKm);
+  if (sortInMemory) {
+    // The sort the caller actually asked for.
+    const chosen = {
+      recent: (a, b) => new Date(b.occurredAt) - new Date(a.occurredAt),
+      urgency: (a, b) =>
+        b.effectiveUrgency - a.effectiveUrgency || new Date(b.occurredAt) - new Date(a.occurredAt),
+      distance: (a, b) => a.distanceKm - b.distanceKm,
+    }[q.sort] ?? ((a, b) => a.distanceKm - b.distanceKm);
+
+    /**
+     * Confirmed breed first, then the caller's sort within each group.
+     *
+     * The filter lets blank-breed reports through on purpose — whoever finds a
+     * street dog usually cannot name the breed — but without this a report that
+     * simply happens to be closer outranks the one dog that actually matches
+     * what was searched for. At this data size that is cosmetic; over a few
+     * thousand reports, most of them blank, it would bury every real match and
+     * make the breed filter worthless.
+     */
+    results.sort((a, b) =>
+      breedFiltered ? Number(b.breedConfirmed) - Number(a.breedConfirmed) || chosen(a, b) : chosen(a, b)
+    );
     results = results.slice(skip, skip + q.limit);
   }
 

@@ -36,6 +36,8 @@ export function useCloudinaryUpload() {
       form.append('api_key', sig.apiKey);
       form.append('timestamp', String(sig.timestamp));
       form.append('folder', sig.folder);
+      // Signed on the server, so it has to be sent back byte-identical.
+      form.append('allowed_formats', sig.allowedFormats);
       form.append('signature', sig.signature);
 
       return new Promise((resolve, reject) => {

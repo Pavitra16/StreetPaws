@@ -6,3 +6,9 @@ node_modules/
 
 # Evaluation datasets — large, externally hosted, CC-BY-4.0 (see eval/README.md)
 eval/data/
+
+# Seed photographs - local only, uploaded to Cloudinary by npm run seed
+seed-assets/**/*.jpg
+seed-assets/**/*.jpeg
+seed-assets/**/*.png
+seed-assets/**/*.webp

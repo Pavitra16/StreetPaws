@@ -1,7 +1,18 @@
 import axios from 'axios';
 
+/**
+ * In development this stays relative and Vite proxies /api to the backend, so
+ * there is no CORS preflight to debug locally.
+ *
+ * In production the frontend and the API are on different hosts, and a relative
+ * path would send every request to the static site — which has no /api — and
+ * 404. VITE_API_URL is baked in at build time and must be the API's absolute
+ * origin, e.g. https://streetpaws-api.onrender.com/api
+ *
+ * Nothing secret belongs in a VITE_ variable: they ship to the browser in clear.
+ */
 export const api = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   timeout: 20000,
   // The session lives in an httpOnly cookie, so it must ride along with requests.
   withCredentials: true,

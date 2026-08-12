@@ -7,6 +7,7 @@ import { useCloudinaryUpload } from '../hooks/useCloudinaryUpload';
 import { useGeolocation, DEFAULT_CENTER } from '../hooks/useGeolocation';
 import MediaUploader from '../components/upload/MediaUploader';
 import MapPicker from '../components/map/MapPicker';
+import { BreedDatalist, BREED_LIST_ID } from '../lib/breeds.jsx';
 
 const CONDITIONS = [
   { value: 'critical', label: 'Critical', hint: 'Bleeding, cannot stand, hit by a vehicle' },
@@ -207,12 +208,17 @@ export default function ReportDog() {
               <span className="mb-1 block font-medium text-stone-700">
                 Breed <span className="font-normal text-stone-400">(if you know)</span>
               </span>
+              {/* Suggestions, not a fixed list — see lib/breeds.jsx. Leaving
+                  this blank is a fine answer, and a blank breed still shows up
+                  in breed searches, so a guess is never required. */}
               <input
                 value={form.breedGuess}
                 onChange={set('breedGuess')}
-                placeholder="Indian Pariah, Labrador…"
+                list={BREED_LIST_ID}
+                placeholder="Start typing, or leave blank if unsure"
                 className="w-full rounded-lg border border-stone-300 px-3 py-2 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
               />
+              <BreedDatalist />
             </label>
 
             <label className="block text-sm">

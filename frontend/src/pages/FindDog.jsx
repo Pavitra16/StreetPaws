@@ -8,6 +8,7 @@ import DogCard from '../components/dog/DogCard';
 import Spinner from '../components/common/Spinner';
 import EmptyState from '../components/common/EmptyState';
 import PhotoMatchPanel from '../components/ai/PhotoMatchPanel';
+import { BreedDatalist, BREED_LIST_ID } from '../lib/breeds.jsx';
 
 const TABS = [
   { id: 'location', label: 'By location' },
@@ -107,9 +108,11 @@ export default function FindDog() {
                 <input
                   value={breedInput}
                   onChange={(e) => setBreedInput(e.target.value)}
+                  list={BREED_LIST_ID}
                   placeholder="Labrador, Indian Pariah, Beagle…"
                   className="w-full rounded-lg border border-stone-300 px-3 py-2 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
                 />
+                <BreedDatalist />
               </label>
             )}
 

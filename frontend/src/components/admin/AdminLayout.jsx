@@ -2,6 +2,7 @@ import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import PawMark from '../common/PawMark';
 
 /**
  * The admin panel gets its own shell.
@@ -41,7 +42,7 @@ export default function AdminLayout() {
       <header className="sticky top-0 z-20 border-b border-stone-800 bg-stone-900 text-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
           <div className="flex min-w-0 items-center gap-2">
-            <span aria-hidden="true">🐕</span>
+            <PawMark className="size-6 text-brand-300" />
             <span className="hidden font-semibold tracking-tight sm:block">StreetPaws</span>
             <span className="shrink-0 rounded bg-stone-700 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-stone-200">
               Admin
