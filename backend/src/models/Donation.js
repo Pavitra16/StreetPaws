@@ -28,10 +28,27 @@ const donationSchema = new Schema(
       dogReportId: { type: Schema.Types.ObjectId, ref: 'DogReport', default: null },
     },
 
+    /**
+     * Which gateway took this payment.
+     *
+     * Recorded per donation, not read from configuration at display time. A
+     * refund, a dispute or a reconciliation months later has to go back to the
+     * provider that actually holds the money, and by then the server may well
+     * be pointed at the other one.
+     */
+    provider: { type: String, enum: ['razorpay', 'stripe', 'demo'], default: 'razorpay', index: true },
+
     razorpay: {
       orderId: { type: String, index: true },
       paymentId: String,
       signature: String,
+    },
+
+    stripe: {
+      // The Checkout Session — created before payment, so it is what a webhook
+      // arriving for an abandoned payment can still be matched against.
+      sessionId: { type: String, index: true },
+      paymentIntentId: String,
     },
 
     // Only ever moved to 'paid' by the signature-verified webhook — never by the

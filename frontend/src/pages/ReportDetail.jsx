@@ -6,6 +6,9 @@ import L from 'leaflet';
 import { api } from '../lib/api';
 import Spinner from '../components/common/Spinner';
 import AIAnalysisPanel from '../components/ai/AIAnalysisPanel';
+import LostDogActions from '../components/dog/LostDogActions';
+import PossibleMatches from '../components/dog/PossibleMatches';
+import SightingsPanel from '../components/dog/SightingsPanel';
 import { urgencyMeta, timeAgo, CONDITION_LABEL, STATUS_LABEL } from '../lib/urgency';
 import { reportBreed } from '../lib/reportText';
 
@@ -65,6 +68,10 @@ export default function ReportDetail() {
   }
 
   const u = urgencyMeta(report.effectiveUrgency);
+  const isLost = report.kind === 'lost';
+  // A finished case keeps its page — the link is shared, and "this dog is home"
+  // is a better answer than a 404 — but stops soliciting help nobody needs.
+  const isClosed = ['resolved', 'reunited', 'closed'].includes(report.status);
   const images = report.media?.filter((m) => m.resourceType === 'image') ?? [];
   const videos = report.media?.filter((m) => m.resourceType === 'video') ?? [];
 
@@ -121,6 +128,23 @@ export default function ReportDetail() {
           {videos.map((m) => (
             <video key={m.cloudinaryPublicId} src={m.url} controls className="w-full rounded-xl bg-black" />
           ))}
+
+          {/* After the photos, not before: you have to recognise the dog before
+              there is any point offering to call about it. */}
+          {isLost && report.status === 'reunited' && (
+            <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+              <h2 className="font-semibold text-emerald-900">
+                {report.dogName ?? 'This dog'} is back home
+              </h2>
+              <p className="mt-1 text-sm text-emerald-800">
+                The owner has confirmed it. Thank you to everyone who kept an eye out.
+              </p>
+            </section>
+          )}
+
+          {isLost && !isClosed && <LostDogActions report={report} />}
+          {isLost && <SightingsPanel report={report} readOnly={isClosed} />}
+          {isLost && !isClosed && <PossibleMatches report={report} />}
 
           <section className="rounded-xl border border-stone-200 bg-white p-5">
             <h2 className="text-sm font-semibold text-stone-900">
@@ -182,7 +206,9 @@ export default function ReportDetail() {
           </section>
 
           <section className="rounded-xl border border-stone-200 bg-white p-5">
-            <h2 className="text-sm font-semibold text-stone-900">Reporter</h2>
+            <h2 className="text-sm font-semibold text-stone-900">
+              {isLost ? 'Owner' : 'Reporter'}
+            </h2>
             <dl className="mt-2 space-y-1 text-sm">
               <div className="flex justify-between gap-3">
                 <dt className="text-stone-500">Name</dt>
@@ -193,10 +219,19 @@ export default function ReportDetail() {
                 <dd className="font-mono text-stone-800">{report.contact?.phone ?? '—'}</dd>
               </div>
             </dl>
+
+            {report.contact?.publishedByOwner && (
+              <p className="mt-3 rounded-lg bg-sky-50 p-3 text-xs text-sky-900">
+                {report.dogName ? `${report.dogName}’s owner` : 'The owner'} asked for their number
+                to be shown so you can call if you see {report.dogName ?? 'their dog'}.
+              </p>
+            )}
+
             {report.contact?.masked && (
               <p className="mt-3 rounded-lg bg-stone-50 p-3 text-xs text-stone-500">
-                Contact details are hidden to protect the reporter. Verified rescuers see the full
-                number when they take on a case.
+                {isLost
+                  ? 'The owner chose to keep their number private. A verified rescuer can see it and pass on your sighting.'
+                  : 'Contact details are hidden to protect the reporter. Verified rescuers see the full number when they take on a case.'}
               </p>
             )}
           </section>

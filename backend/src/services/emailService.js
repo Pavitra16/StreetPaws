@@ -187,6 +187,71 @@ export async function sendPasswordReset(user, link) {
   });
 }
 
+/**
+ * Sent once, when a lost report is filed: the owner's way back into it.
+ *
+ * This link is the only thing standing between the owner and a report they can
+ * never close, so it says plainly what it is for — an owner who deletes this as
+ * a receipt has lost control of their own post.
+ */
+export async function sendReportManageLink({ report, manageUrl }) {
+  const name = report.dogName ?? 'your dog';
+
+  return send({
+    to: report.contact.email,
+    subject: `Keep this — your report for ${name}`,
+    text: [
+      `Your report for ${name} is live, and people nearby can see it now.`,
+      ``,
+      `Keep this email. This link is how you manage the report — there is no`,
+      `password and no account, so it is the only way back in:`,
+      ``,
+      manageUrl,
+      ``,
+      `From there you can:`,
+      `  - mark ${name} as found, which takes the report out of search`,
+      `  - correct the description or where they were last seen`,
+      `  - take the report down`,
+      ``,
+      `We will email you whenever somebody reports seeing ${name}.`,
+      ``,
+      `Anyone with this link can manage the report, so forward it only to people`,
+      `helping you look.`,
+    ].join('\n'),
+  });
+}
+
+/**
+ * Someone logged a sighting of a lost dog. The owner is refreshing the page in
+ * the meantime, so this needs to reach their phone, not their dashboard.
+ */
+export async function sendSightingLogged({ report, sighting, distanceKm, appUrl }) {
+  const name = report.dogName ?? 'your dog';
+  const where = sighting.location?.address ?? sighting.location?.city ?? 'a location on the map';
+  const link = `${appUrl}/reports/${report._id}`;
+
+  return send({
+    to: report.contact.email,
+    // The dog's name in the subject line: this has to be readable on a lock
+    // screen, next to everything else competing for their attention.
+    subject: `Possible sighting of ${name} near ${where}`,
+    text: [
+      `Someone reported seeing ${name}.`,
+      ``,
+      `Where: ${where}${distanceKm != null ? ` (${distanceKm} km from where you lost them)` : ''}`,
+      `When: ${new Date(sighting.seenAt).toLocaleString('en-IN')}`,
+      sighting.note ? `\nWhat they said: ${sighting.note}` : '',
+      sighting.media?.length ? `\nThey attached a photo — open the report to see it.` : '',
+      ``,
+      `See it on the map: ${link}`,
+      ``,
+      `This is someone's best guess, not a confirmation.`,
+    ]
+      .filter(Boolean)
+      .join('\n'),
+  });
+}
+
 export async function sendOrganizationRejected(org, note) {
   return send({
     to: org.email,

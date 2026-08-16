@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DogReport, CONDITIONS, REPORT_KINDS } from '../models/index.js';
+import { DogReport, CONDITIONS, REPORT_KINDS, ACTIVE_STATUSES } from '../models/index.js';
 import { withinRadius } from '../utils/geo.js';
 import { serializeReport } from '../utils/serialize.js';
 import { viewerCanSeeContact } from '../middleware/auth.js';
@@ -29,7 +29,19 @@ export const searchNear = asyncHandler(async (req, res) => {
   const filter = { location: withinRadius(q.lat, q.lng, q.radiusKm) };
   if (q.kind) filter.kind = q.kind;
   if (q.condition) filter.condition = q.condition;
-  if (q.status) filter.status = { $in: q.status.split(',').map((s) => s.trim()) };
+  /**
+   * Finished cases are hidden unless asked for by name.
+   *
+   * Without the else branch a reunited dog stayed in Find forever: the owner
+   * marked it home, the manage page told them it would stop appearing, and it
+   * carried on showing up alongside dogs that still need help. An explicit
+   * ?status= still reaches them, which is what the rescuer consoles use.
+   */
+  if (q.status) {
+    filter.status = { $in: q.status.split(',').map((s) => s.trim()) };
+  } else {
+    filter.status = { $in: ACTIVE_STATUSES };
+  }
   // Filter and sort on the stored effective urgency, not the raw model score —
   // otherwise a reporter-flagged critical case with a low AI read would be
   // excluded from exactly the query meant to surface it.
@@ -148,7 +160,12 @@ export const getReport = asyncHandler(async (req, res) => {
     'name kind phone verified'
   );
   if (!report) throw ApiError.notFound('Report not found');
-  res.json(serializeReport(report, { revealContact: await viewerCanSeeContact(req) }));
+  res.json(
+    serializeReport(report, {
+      revealContact: await viewerCanSeeContact(req),
+      allowOwnerConsent: true,
+    })
+  );
 });
 
 function escapeRegex(s) {

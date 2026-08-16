@@ -51,6 +51,15 @@ export const contactSchema = new Schema(
     phone: { type: String, trim: true, maxlength: 20 },
     email: { type: String, trim: true, lowercase: true, maxlength: 200 },
     preferredChannel: { type: String, enum: ['phone', 'whatsapp', 'email'], default: 'phone' },
+
+    /**
+     * The person explicitly asked for these details to be shown publicly.
+     *
+     * Only an owner posting a lost dog has a reason to tick this: the whole
+     * point of their report is that a stranger who spots the dog can call them.
+     * Defaults false, so silence never publishes anyone's number.
+     */
+    showPublicly: { type: Boolean, default: false },
   },
   { _id: false }
 );

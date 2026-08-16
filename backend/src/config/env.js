@@ -49,6 +49,20 @@ export const env = {
     keySecret: process.env.RAZORPAY_KEY_SECRET,
     webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET,
   },
+
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY,
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+  },
+
+  /**
+   * Which gateway to use when both are configured.
+   *
+   * Explicit rather than inferred from whichever keys happen to be present:
+   * with two sets of credentials in an environment, "whichever loads first"
+   * is not something anyone should have to read the code to discover.
+   */
+  paymentProvider: process.env.PAYMENT_PROVIDER,
 };
 
 export const isProd = env.nodeEnv === 'production';
@@ -88,6 +102,7 @@ export function featureStatus() {
     cloudinary: Boolean(env.cloudinary.cloudName && env.cloudinary.apiKey && env.cloudinary.apiSecret),
     gemini: Boolean(env.gemini.apiKey),
     razorpay: Boolean(env.razorpay.keyId && env.razorpay.keySecret),
+    stripe: Boolean(env.stripe.secretKey),
     email: Boolean(env.smtp.host && env.smtp.user && env.smtp.pass),
     ollama: Boolean(env.ollama.baseUrl),
   };

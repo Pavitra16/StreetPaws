@@ -5,6 +5,9 @@ import { serializeReport } from '../utils/serialize.js';
 import { viewerCanSeeContact } from '../middleware/auth.js';
 import { asyncHandler, ApiError } from '../middleware/errorHandler.js';
 import { queueAnalysis } from '../jobs/analyzeReport.js';
+import { createManageToken, buildManageUrl } from '../services/reportAccessService.js';
+import { sendReportManageLink } from '../services/emailService.js';
+import { env } from '../config/env.js';
 
 const mediaInput = z.object({
   cloudinaryPublicId: z.string().min(1),
@@ -38,6 +41,7 @@ export const createReportSchema = z
         .regex(/^[+\d][\d\s-]*$/, 'Enter a valid phone number'),
       email: z.string().trim().email().max(200).optional().or(z.literal('')),
       preferredChannel: z.enum(['phone', 'whatsapp', 'email']).default('phone'),
+      showPublicly: z.boolean().default(false),
     }),
 
     description: z.string().trim().max(3000).optional(),
@@ -67,6 +71,17 @@ export const createReport = asyncHandler(async (req, res) => {
     isPrimary: b.media.some((x) => x.isPrimary) ? Boolean(m.isPrimary) : i === 0,
   }));
 
+  /**
+   * A manage link, for a lost report with an email on it.
+   *
+   * Lost only: a found report's reporter is a bystander, not the animal's owner,
+   * and handing them a "mark resolved" button would let a passer-by close a case
+   * a rescuer is actively working. Their report is managed by the organisation
+   * that accepted it.
+   */
+  const issueManageToken = b.kind === 'lost' && Boolean(b.contact.email);
+  const manage = issueManageToken ? createManageToken() : null;
+
   const report = await DogReport.create({
     kind: b.kind,
     media,
@@ -78,7 +93,14 @@ export const createReport = asyncHandler(async (req, res) => {
       state: b.state,
       pincode: b.pincode,
     }),
-    contact: { ...b.contact, email: b.contact.email || undefined },
+    contact: {
+      ...b.contact,
+      email: b.contact.email || undefined,
+      // Only an owner looking for their own dog can publish their number. A
+      // found report has a bystander's number on it, and it is not theirs to
+      // publish — refusing here means a crafted payload cannot do it either.
+      showPublicly: b.kind === 'lost' && b.contact.showPublicly === true,
+    },
     description: b.description,
     condition: b.condition,
     dogName: b.dogName,
@@ -86,12 +108,46 @@ export const createReport = asyncHandler(async (req, res) => {
     occurredAt: b.occurredAt ?? new Date(),
     analysisState: 'pending',
     statusHistory: [{ status: 'open', at: new Date(), note: 'Report submitted' }],
+    ...(manage ? { manage: { tokenHash: manage.tokenHash, issuedAt: manage.issuedAt } } : {}),
   });
 
   // Deliberately not awaited.
   queueAnalysis(report.id);
 
-  res.status(201).json(serializeReport(report, { revealContact: true }));
+  if (manage) {
+    // Best effort, like every other email here: the token is already stored, so
+    // a dead SMTP server costs the owner their link, not their report. The
+    // response carries the URL too, which is what the confirmation screen shows.
+    sendReportManageLink({
+      report,
+      manageUrl: buildManageUrl({
+        appUrl: env.clientOrigin,
+        reportId: report.id,
+        token: manage.token,
+      }),
+    }).catch((err) => console.warn(`[report] manage link email failed: ${err.message}`));
+  }
+
+  /**
+   * The manage URL is returned exactly once, here.
+   *
+   * Email delivery fails quietly and often — wrong address, full mailbox, spam
+   * folder — and an owner who never receives the link cannot get another one,
+   * because proving they filed the report is the very thing the link does. The
+   * confirmation screen shows it so there is a copy that does not depend on SMTP.
+   */
+  res.status(201).json({
+    ...serializeReport(report, { revealContact: true }),
+    ...(manage
+      ? {
+          manageUrl: buildManageUrl({
+            appUrl: env.clientOrigin,
+            reportId: report.id,
+            token: manage.token,
+          }),
+        }
+      : {}),
+  });
 });
 
 export const updateStatusSchema = z.object({
@@ -112,5 +168,10 @@ export const updateReportStatus = asyncHandler(async (req, res) => {
   if (req.body.organizationId) report.assignedOrganizationId = req.body.organizationId;
 
   await report.save();
-  res.json(serializeReport(report, { revealContact: await viewerCanSeeContact(req) }));
+  res.json(
+    serializeReport(report, {
+      revealContact: await viewerCanSeeContact(req),
+      allowOwnerConsent: true,
+    })
+  );
 });

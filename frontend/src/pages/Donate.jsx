@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 
 import { api } from '../lib/api';
@@ -28,6 +29,33 @@ export default function Donate() {
   const [donor, setDonor] = useState({ name: '', email: '', phone: '', anonymous: false });
   const [status, setStatus] = useState(null);
 
+  /**
+   * Stripe sends the donor back here after the hosted page.
+   *
+   * ?status=success in the URL is not evidence — anyone can type it. So the
+   * page looks the donation up by id and shows whatever the server says, which
+   * is only 'paid' once the signed webhook has arrived. Polling briefly covers
+   * the usual case where the redirect beats the webhook by a second or two.
+   */
+  const [params, setParams] = useSearchParams();
+  const returnedId = params.get('status') === 'success' ? params.get('donation') : null;
+  const cancelled = params.get('status') === 'cancelled';
+
+  const { data: returned } = useQuery({
+    queryKey: ['donation', returnedId],
+    queryFn: async () => (await api.get(`/donations/${returnedId}`)).data,
+    enabled: Boolean(returnedId),
+    refetchInterval: (q) => (q.state.data?.status === 'paid' ? false : 2000),
+  });
+
+  const { data: health } = useQuery({
+    queryKey: ['health'],
+    queryFn: async () => (await api.get('/health')).data,
+    retry: false,
+    staleTime: 60_000,
+  });
+  const demoMode = health?.paymentProvider === 'demo';
+
   const { data: fund } = useQuery({
     queryKey: ['fund'],
     queryFn: async () => (await api.get('/donations/fund')).data,
@@ -44,10 +72,33 @@ export default function Donate() {
       const order = (
         await api.post('/donations/order', {
           amountInr: Number(amount),
-          target,
+          // Send only the id that belongs to the chosen target. The state holds
+          // organizationId: null for the platform fund, and a null is a value —
+          // it travels, and the server has to decide what to make of it.
+          target:
+            target.type === 'organization'
+              ? { type: 'organization', organizationId: target.organizationId }
+              : { type: target.type },
           donor: { ...donor, email: donor.email || undefined },
         })
       ).data;
+
+      // Demo mode: the server already recorded it as paid. Nothing to open.
+      if (order.provider === 'demo') return order;
+
+      /**
+       * Stripe hosts the payment page, so there is nothing to open here — the
+       * donor leaves the site and comes back to ?status=success. No card form,
+       * no card data in this bundle, and nothing to keep accessible.
+       *
+       * The redirect proves nothing about payment, which is why the return
+       * page reads the real status from the server rather than trusting the URL.
+       */
+      if (order.provider === 'stripe') {
+        window.location.assign(order.checkoutUrl);
+        // Resolves nothing — the page is going away.
+        return new Promise(() => {});
+      }
 
       const ready = await loadRazorpay();
       if (!ready) throw new Error('Could not load the payment window. Check your connection.');
@@ -64,7 +115,11 @@ export default function Donate() {
               : 'Donation to a rescuer',
           order_id: order.orderId,
           prefill: { name: donor.name, email: donor.email, contact: donor.phone },
-          theme: { color: '#ed6820' },
+          // Razorpay's modal is an iframe, so it cannot read our CSS variables.
+          // This has to be the literal brand-600 hex, and it has to be updated
+          // by hand if the palette changes again — it was still the old orange
+          // after the pink theme landed.
+          theme: { color: '#cf2f66' },
           handler: async (response) => {
             try {
               const res = await api.post('/donations/verify', {
@@ -86,16 +141,60 @@ export default function Donate() {
     onSuccess: (res) => setStatus(res),
   });
 
+  if (cancelled) {
+    return (
+      <div className="mx-auto max-w-lg py-16 text-center">
+        <div className="text-5xl" aria-hidden="true">🐾</div>
+        <h1 className="mt-4 text-2xl font-bold">Nothing was charged</h1>
+        <p className="mt-2 text-stone-600">You closed the payment page before finishing.</p>
+        <button
+          type="button"
+          onClick={() => setParams({})}
+          className="mt-6 rounded-lg bg-brand-600 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-700"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
+
+  if (returnedId) {
+    const paid = returned?.status === 'paid';
+    return (
+      <div className="mx-auto max-w-lg py-16 text-center">
+        <div className="text-5xl" aria-hidden="true">{paid ? '💗' : '⏳'}</div>
+        <h1 className="mt-4 text-2xl font-bold">{paid ? 'Thank you' : 'Confirming your donation'}</h1>
+        {paid ? (
+          <p className="mt-2 text-stone-600">
+            Your ₹{returned.amountInr?.toLocaleString('en-IN')} donation went through.
+          </p>
+        ) : (
+          <p className="mt-3 rounded-lg bg-stone-100 p-3 text-sm text-stone-600">
+            Your payment went to the provider and we are waiting for them to confirm it. This
+            usually takes a few seconds and needs nothing from you.
+          </p>
+        )}
+      </div>
+    );
+  }
+
   if (status) {
     return (
       <div className="mx-auto max-w-lg py-16 text-center">
         <div className="text-5xl" aria-hidden="true">💛</div>
-        <h1 className="mt-4 text-2xl font-bold">Thank you</h1>
-        <p className="mt-2 text-stone-600">Your ₹{status.amountInr} donation went through.</p>
-        {status.pendingConfirmation && (
-          <p className="mt-3 rounded-lg bg-stone-100 p-3 text-xs text-stone-600">
-            We are waiting on final confirmation from the payment provider. This usually takes a few
-            seconds and does not need anything from you.
+        <h1 className="mt-4 text-2xl font-bold">
+          {status.demo ? 'Demo donation recorded' : 'Thank you'}
+        </h1>
+        {status.demo ? (
+          <p className="mt-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-900 ring-1 ring-inset ring-amber-200">
+            <strong>No payment was taken.</strong> This site is running without a payment gateway,
+            so the donation was recorded and the fund total updated to show how the flow works.
+          </p>
+        ) : (
+          <p className="mt-2 text-stone-600">
+            {/* amountInr, not amountPaise — /verify returns rupees, and reading
+                the wrong field here rendered "₹NaN" on every real donation. */}
+            Your ₹{status.amountInr?.toLocaleString('en-IN')} donation went through.
           </p>
         )}
       </div>
@@ -110,6 +209,20 @@ export default function Donate() {
           Give to a specific rescuer, or to the shared fund we distribute for treatment costs.
         </p>
       </header>
+
+      {/* Said before anyone fills the form in, not only after. Someone who
+          believes they donated and did not is worse than an unfinished feature. */}
+      {demoMode && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+          <strong>Demo mode — no payment will be taken.</strong>
+          <span className="mt-1 block text-amber-800">
+            Razorpay requires a PAN before issuing test keys and Stripe is invite-only in India, so
+            this deployment runs without a gateway. Both integrations are implemented in the
+            codebase and activate as soon as keys are present; donating here records the donation
+            and moves the fund total so the flow can be seen end to end.
+          </span>
+        </div>
+      )}
 
       {fund && (
         <section className="grid gap-3 sm:grid-cols-3">
