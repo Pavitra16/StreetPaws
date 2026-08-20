@@ -26,6 +26,7 @@ import Home from './pages/Home';
 const ReportDog = lazy(() => import('./pages/ReportDog'));
 const FindDog = lazy(() => import('./pages/FindDog'));
 const ReportDetail = lazy(() => import('./pages/ReportDetail'));
+const ManageReport = lazy(() => import('./pages/ManageReport'));
 const Adopt = lazy(() => import('./pages/Adopt'));
 const AdoptionDetail = lazy(() => import('./pages/AdoptionDetail'));
 const Donate = lazy(() => import('./pages/Donate'));
@@ -66,6 +67,9 @@ export default function App() {
           <Route path="/report" element={<ReportDog />} />
           <Route path="/find" element={<FindDog />} />
           <Route path="/reports/:id" element={<ReportDetail />} />
+          {/* Authorised by the token in the URL, not a session — deliberately
+              outside ProtectedRoute. */}
+          <Route path="/reports/:id/manage" element={<ManageReport />} />
           <Route path="/adopt" element={<Adopt />} />
           <Route path="/adopt/:id" element={<AdoptionDetail />} />
           <Route path="/donate" element={<Donate />} />

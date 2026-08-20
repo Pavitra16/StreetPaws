@@ -34,6 +34,9 @@ export default function ReportDog() {
     contactPhone: '',
     contactEmail: '',
     preferredChannel: 'phone',
+    // Ticked by default on a lost report: an owner posting a missing dog wants
+    // to be called. Still shown as a choice, and still theirs to untick.
+    showPublicly: kind === 'lost',
   });
   const [fieldErrors, setFieldErrors] = useState({});
 
@@ -78,13 +81,26 @@ export default function ReportDog() {
           phone: form.contactPhone,
           email: form.contactEmail || undefined,
           preferredChannel: form.preferredChannel,
+          showPublicly: kind === 'lost' && form.showPublicly,
         },
       };
       return (await api.post('/reports', payload)).data;
     },
     onSuccess: (report) => {
       uploader.reset();
-      navigate(`/reports/${report.id}?new=1`);
+
+      /**
+       * A lost report lands the owner on their own manage page rather than the
+       * public one, so the magic link is sitting in the address bar to bookmark.
+       * The email is the backup copy, not the only copy — SMTP fails quietly,
+       * and this link cannot be reissued to someone who never got it.
+       */
+      if (report.manageUrl) {
+        const u = new URL(report.manageUrl);
+        navigate(`${u.pathname}${u.search}&new=1`);
+        return;
+      }
+      navigate(`/reports/${report.id}`);
     },
     onError: (err) => setFieldErrors(err.details ?? {}),
   });
@@ -271,7 +287,10 @@ export default function ReportDog() {
 
             <label className="block text-sm">
               <span className="mb-1 block font-medium text-stone-700">
-                Email <span className="font-normal text-stone-400">(optional)</span>
+                Email{' '}
+                <span className="font-normal text-stone-400">
+                  {kind === 'lost' ? '(strongly recommended)' : '(optional)'}
+                </span>
               </span>
               <input
                 value={form.contactEmail}
@@ -279,12 +298,51 @@ export default function ReportDog() {
                 type="email"
                 className="w-full rounded-lg border border-stone-300 px-3 py-2 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
               />
+              {/* Left optional rather than required: a reported dog is worth more
+                  than a complete form. But an owner with no email gets no sighting
+                  alerts and no way to close the report, so say what they lose. */}
+              {kind === 'lost' && !form.contactEmail.trim() && (
+                <span className="mt-1 block text-xs text-stone-500">
+                  Without an email we cannot tell you when somebody spots your dog, and you will
+                  not get a link to close the report once they are home.
+                </span>
+              )}
             </label>
 
-            <p className="rounded-lg bg-stone-50 p-3 text-xs text-stone-500">
-              Your number is hidden on the public page. Only a verified rescuer taking on this case
-              can see it.
-            </p>
+            {kind === 'lost' ? (
+              <div className="rounded-lg bg-stone-50 p-3">
+                <label className="flex cursor-pointer items-start gap-2.5 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={form.showPublicly}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, showPublicly: e.target.checked }))
+                    }
+                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-stone-300 text-brand-600 focus:ring-brand-500"
+                  />
+                  <span>
+                    <span className="font-medium text-stone-800">
+                      Show my phone number on the page
+                    </span>
+                    <span className="mt-0.5 block text-xs text-stone-500">
+                      Anyone who spots your dog can call you straight away. Your number will be
+                      visible to everyone who opens the report.
+                    </span>
+                  </span>
+                </label>
+                {!form.showPublicly && (
+                  <p className="mt-2 border-t border-stone-200 pt-2 text-xs text-stone-500">
+                    Your number stays hidden. Only a verified rescuer will be able to see it — a
+                    neighbour who finds your dog will not.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="rounded-lg bg-stone-50 p-3 text-xs text-stone-500">
+                Your number is hidden on the public page. Only a verified rescuer taking on this
+                case can see it.
+              </p>
+            )}
 
             {mutation.isError && (
               <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{mutation.error.message}</p>

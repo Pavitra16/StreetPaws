@@ -14,6 +14,17 @@ export const REPORT_STATUSES = [
   'closed',
 ];
 
+/**
+ * A case that is finished. Nobody should be searching for these dogs, alerting
+ * on them, or reporting sightings of them.
+ *
+ * Defined once here because three places need the same answer and had been
+ * deciding it independently — which is how a reunited dog stayed in the search
+ * results and kept collecting sightings after it was home.
+ */
+export const CLOSED_STATUSES = ['resolved', 'reunited', 'closed'];
+export const ACTIVE_STATUSES = REPORT_STATUSES.filter((s) => !CLOSED_STATUSES.includes(s));
+
 /** What the reporter's own condition pick is worth on the 1-5 urgency scale. */
 export const CONDITION_URGENCY = { critical: 5, injured: 4, sick: 3, healthy: 1 };
 
@@ -88,6 +99,27 @@ const dogReportSchema = new Schema(
 
     location: { type: pointSchema, required: true },
     contact: { type: contactSchema, required: true },
+
+    /**
+     * Lets the person who filed a lost report manage it without an account.
+     *
+     * Reporting is deliberately anonymous, which left the owner of a missing dog
+     * unable to do the one thing only they can know to do: say the dog is home.
+     * Their report stayed open forever, kept surfacing in searches and kept
+     * collecting sightings for a dog asleep on a sofa.
+     *
+     * A scoped token in an emailed link, not an account — see
+     * docs/11-access-model.md and services/reportAccessService.js.
+     * `select: false` so the hash never rides along in an API response.
+     */
+    manage: {
+      tokenHash: { type: String, select: false },
+      issuedAt: { type: Date },
+      // Set when the owner closes the report or asks for a new link. A revoked
+      // token stays in place rather than being deleted: "this link was retired"
+      // and "this report never had one" are different answers.
+      revokedAt: { type: Date, default: null },
+    },
 
     description: { type: String, trim: true, maxlength: 3000 },
     condition: { type: String, enum: CONDITIONS, default: 'healthy', index: true },

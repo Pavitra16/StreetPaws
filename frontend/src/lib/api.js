@@ -30,7 +30,22 @@ api.interceptors.response.use(
 
     if (payload?.message) {
       error.message = payload.message;
+      // Kept as-is: forms that render errors per field read this directly.
       error.details = payload.details;
+
+      /**
+       * Fold the field errors into the message.
+       *
+       * "Validation failed" on its own tells the user nothing and tells a
+       * developer almost as little — a donation to the platform fund showed
+       * exactly that, while the response body underneath said the real cause
+       * was `target.organizationId`. Any form that renders `error.message`
+       * alone (most of them) was discarding the useful half of the payload.
+       */
+      const fields = payload.details && typeof payload.details === 'object'
+        ? Object.values(payload.details).filter((v) => typeof v === 'string')
+        : [];
+      if (fields.length) error.message = `${payload.message}: ${fields.join(' · ')}`;
     } else if (error.code === 'ECONNABORTED') {
       error.message = 'The request timed out. Check your connection and try again.';
     } else if (!error.response) {

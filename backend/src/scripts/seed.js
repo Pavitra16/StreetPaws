@@ -39,6 +39,7 @@ import {
   AdoptionApplication,
   Donation,
   Disbursement,
+  Sighting,
 } from '../models/index.js';
 import { hashPassword } from '../services/authService.js';
 import { toPoint, haversineKm } from '../utils/geo.js';
@@ -479,6 +480,49 @@ const LISTINGS = [
 ];
 
 async function run() {
+  /**
+   * Refuse to wipe a production database.
+   *
+   * This script deletes every collection. That is exactly what you want against
+   * a development database and catastrophic against a live one, and the only
+   * thing standing between the two is which MONGODB_URI happens to be exported
+   * in the shell — no confirmation prompt, no dry run, nothing to undo.
+   *
+   * Both signals are checked, because either alone misses the realistic mistake:
+   * NODE_ENV=production with a local URI is harmless, while an unset NODE_ENV
+   * pointed at the live cluster is the accident that actually happens — running
+   * this in a deploy shell, or with the production .env still sourced.
+   */
+  const uri = process.env.MONGODB_URI ?? '';
+  // Credentials out, host and database name in — that is what tells a human
+  // whether this is the cluster they meant.
+  const target = uri.replace(/\/\/[^@]*@/, '//') || '(MONGODB_URI unset)';
+  const forced = process.argv.includes('--i-know-this-wipes-the-database');
+
+  if (process.env.NODE_ENV === 'production' && !forced) {
+    console.error(
+      [
+        '',
+        'REFUSING TO SEED — NODE_ENV is production.',
+        `  target: ${target}`,
+        '',
+        'This script deletes every collection before rebuilding them.',
+        'If you genuinely mean to, re-run with --i-know-this-wipes-the-database',
+        '',
+      ].join('\n')
+    );
+    process.exit(1);
+  }
+
+  /**
+   * NODE_ENV alone does not catch the accident that actually happens: running
+   * this from a shell where the production .env is still sourced, with NODE_ENV
+   * unset. Nothing here can tell those apart — a development database for this
+   * project is a remote Atlas cluster too — so print the target instead and let
+   * the person read it before it is too late.
+   */
+  console.log(`\nseeding (this DELETES all existing data):\n  ${target}\n`);
+
   await connectDB();
   await ensureIndexes();
 
@@ -548,7 +592,8 @@ async function run() {
 
   const wiped = {};
   for (const [name, Model] of Object.entries({
-    Alert, DogReport, AdoptionApplication, AdoptionListing, Donation, Disbursement, Organization,
+    Sighting, Alert, DogReport, AdoptionApplication, AdoptionListing, Donation, Disbursement,
+    Organization,
   })) {
     wiped[name] = (await Model.deleteMany({})).deletedCount;
   }
@@ -633,7 +678,15 @@ async function run() {
       location: toPoint({
         lat: r.lat, lng: r.lng, address: r.area, city: 'New Delhi', state: 'Delhi',
       }),
-      contact: { name: r.reporter, phone: r.phone, preferredChannel: 'phone' },
+      contact: {
+        name: r.reporter,
+        phone: r.phone,
+        preferredChannel: 'phone',
+        // Owners of the lost dogs published their number, which is what the
+        // checkbox on the lost flow defaults to. Bruno's owner did not, so the
+        // private case stays visible on the site instead of only in a test.
+        showPublicly: (r.kind ?? 'found') === 'lost' && r.dogName !== 'Bruno',
+      },
       description: r.description,
       condition: r.condition,
       dogName: r.dogName,
@@ -652,6 +705,53 @@ async function run() {
       ? `reports: ${reports.length}`
       : `reports: SKIPPED — seed-assets/reports/ is empty, so Find and the rescuer queues will be empty. Add photos and re-run.`
   );
+
+  /* ---- sightings of the lost dogs ----
+   *
+   * Coco gets a trail of three that drifts away from where she went missing,
+   * which is the reading the panel exists to give: a lost dog moves, and one
+   * "last seen" pin is stale within hours. Simba gets one. Rocky and Bruno get
+   * none, so the empty state is on the seeded site and not only in a test.
+   */
+  const SIGHTINGS = {
+    Coco: [
+      { dLat: 0.004, dLng: 0.003, hours: 20, name: 'Imran Qureshi', area: 'Hauz Khas bus stop',
+        note: 'Tricolour beagle with a bell collar near the Hauz Khas bus stop. Ran off towards the park when I called.' },
+      { dLat: 0.011, dLng: 0.008, hours: 9, name: 'Sunita Menon', area: 'Green Park market',
+        note: 'Drinking from the tap behind the market. Looked tired but was walking fine.' },
+      { dLat: 0.019, dLng: 0.014, hours: 3, name: null, area: 'Deer Park gate',
+        note: 'Saw a beagle matching this near the Deer Park gate about an hour ago, heading north.' },
+    ],
+    Simba: [
+      { dLat: -0.006, dLng: 0.002, hours: 14, name: 'Vikram Bose', area: 'Malviya Nagar main road',
+        note: 'Sitting outside the chemist for a while. Has the scar on the muzzle you described.' },
+    ],
+  };
+
+  const sightings = [];
+  for (const { doc: report, seed } of reports) {
+    for (const s of SIGHTINGS[report.dogName] ?? []) {
+      const seenAt = new Date(Date.now() - s.hours * 3600 * 1000);
+      sightings.push(
+        await Sighting.create({
+          dogReportId: report._id,
+          location: toPoint({
+            lat: seed.lat + s.dLat,
+            lng: seed.lng + s.dLng,
+            address: s.area,
+            city: 'New Delhi',
+          }),
+          seenAt,
+          note: s.note,
+          // Some people leave a name, some do not — both are accepted, and the
+          // panel has to read properly either way.
+          contact: s.name ? { name: s.name } : undefined,
+          createdAt: seenAt,
+        })
+      );
+    }
+  }
+  console.log(`sightings: ${sightings.length}`);
 
   /* ---- alerts, then the case outcomes that follow from them ----
    *

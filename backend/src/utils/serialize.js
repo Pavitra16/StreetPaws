@@ -19,14 +19,67 @@ export function maskContact(contact) {
   };
 }
 
-export function serializeReport(report, { revealContact = false, origin = null } = {}) {
+/**
+ * Whether the reporter published their own number.
+ *
+ * The masking rule above was written for 'found' reports, where the reporter is
+ * a bystander who did a good deed and did not sign up for phone calls. A 'lost'
+ * report is the opposite situation: the reporter is the owner, and the entire
+ * purpose of the page is that whoever spots the dog can reach them. Masking it
+ * there is a missing-pet poster with the number blacked out.
+ *
+ * Consent is explicit (contact.showPublicly) rather than implied by kind, because
+ * some owners would rather be reached another way — and because publishing a
+ * phone number should be a thing someone chose, not a thing we inferred.
+ */
+function ownerPublishedContact(report) {
+  return report.kind === 'lost' && Boolean(report.contact?.showPublicly);
+}
+
+/**
+ * `allowOwnerConsent` is opt-in per call site and defaults to false so that
+ * consent applies on a single dog's page and never to a list. Revealing one
+ * owner's number to someone reading about their dog is the point; returning
+ * fifty of them from a paginated search is a scraper with a UI.
+ */
+export function serializeReport(
+  report,
+  { revealContact = false, allowOwnerConsent = false, origin = null } = {}
+) {
   const json = typeof report.toJSON === 'function' ? report.toJSON() : { ...report };
 
-  json.contact = revealContact ? { ...json.contact, masked: false } : maskContact(json.contact);
+  /**
+   * lean() skips the toJSON transform that renames _id to id, and the match
+   * endpoint queries lean. Every match result therefore shipped Mongo's _id and
+   * no id at all, so the UI built links to /reports/undefined — the one click
+   * the whole matching feature exists to offer.
+   */
+  if (json.id == null && json._id != null) json.id = String(json._id);
+  delete json._id;
+  delete json.__v;
+
+  const publishedByOwner = allowOwnerConsent && ownerPublishedContact(report);
+  if (revealContact || publishedByOwner) {
+    // showPublicly is the stored consent record; publishedByOwner is what the
+    // page acts on. Shipping both just invites them to drift apart.
+    const { showPublicly, ...contact } = json.contact ?? {};
+    json.contact = { ...contact, masked: false, publishedByOwner };
+  } else {
+    json.contact = maskContact(json.contact);
+  }
 
   // Embedding is select:false, but a lean() query with an explicit projection
   // could still pull it through. Never ship 512 floats to a browser.
   delete json.embedding;
+
+  /**
+   * Same reasoning, sharper stakes. `manage.tokenHash` is select:false, but that
+   * only governs what a *query* returns — a document just built by create() has
+   * every field set in memory, so the create response carried the stored hash
+   * straight back out. Credential material never belongs in a payload, whoever
+   * is reading it.
+   */
+  delete json.manage;
 
   const coords = fromPoint(report.location);
   if (coords) {

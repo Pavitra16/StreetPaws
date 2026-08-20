@@ -7,6 +7,7 @@ import cookieParser from 'cookie-parser';
 import mongoose from 'mongoose';
 
 import { env, featureStatus, isProd } from './config/env.js';
+import { activeProvider } from './services/paymentService.js';
 import { attachUser } from './middleware/auth.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import searchRouter from './routes/search.js';
@@ -50,7 +51,13 @@ export function createApp() {
     express.json({
       limit: '1mb',
       verify: (req, res, buf) => {
-        if (req.originalUrl === '/api/donations/webhook') req.rawBody = buf;
+        // Both gateways sign the raw bytes, so both paths need them kept.
+        if (
+          req.originalUrl === '/api/donations/webhook' ||
+          req.originalUrl === '/api/donations/stripe/webhook'
+        ) {
+          req.rawBody = buf;
+        }
       },
     })
   );
@@ -65,6 +72,8 @@ export function createApp() {
       env: env.nodeEnv,
       db: states[mongoose.connection.readyState] ?? 'unknown',
       features: featureStatus(),
+      // 'demo' means donations are recorded but no money moves.
+      paymentProvider: activeProvider(),
       time: new Date().toISOString(),
     });
   });
