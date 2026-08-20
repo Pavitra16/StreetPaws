@@ -86,16 +86,19 @@ exhausted; `@huggingface/transformers` CLIP for embeddings, running locally
 
 ## Data model
 
-Eight collections. Location is GeoJSON everywhere, so `$near` and `$geoWithin` work uniformly.
+Nine collections. Location is GeoJSON everywhere, so `$near` and `$geoWithin` work uniformly.
 
 ```
 User ──owns──> Organization ──posts──> AdoptionListing ──> AdoptionApplication
                     │  ▲                      ▲
-              alerted│  │assigned             │sourceReportId
+              alerted│  │assigned             │ sourceReportId
                     ▼  │                      │
                   Alert └───── DogReport ─────┘
-                                   ▲
-                    Donation ──────┘        Disbursement ──> Organization
+                                 ▲   ▲
+                  Sighting ──────┘   └────── Donation (target.dogReportId)
+                 (lost dogs only)
+                    Donation ──> Organization (target.organizationId)
+                 Disbursement ──> Organization
 ```
 
 `DogReport` holds lost *and* found reports in one collection — matching is then a query within a
@@ -103,6 +106,8 @@ single index rather than a join. Full schema, including the geospatial, vector a
 indexes, is in [`DATABASE.md`](DATABASE.md).
 
 ## Running it locally
+
+Node 22 or newer (`.nvmrc` pins 24).
 
 ```bash
 git clone <this repo>
@@ -124,8 +129,12 @@ without a Gemini key reports simply save unanalysed, without Cloudinary uploads 
 ## Status
 
 The rescue loop is complete and working: report → AI triage → geospatial routing → rescuer accepts →
-case tracked to resolution. Adoption and the admin console are built. Donations are built but need
-Razorpay test keys to run.
+case tracked to resolution. Adoption and the admin console are built.
+
+Donations run on Razorpay in test mode. `RAZORPAY_WEBHOOK_SECRET` is not set yet, and that is the one
+gap: the signed `/verify` callback marks a donation paid and covers the normal path, but a donor who
+closes the tab between paying and the callback returning has the payment taken and no record written.
+The webhook is the backstop for exactly that case. `GET /api/health` reports the active provider.
 
 Triage urgency has not yet been validated against a labelled set of genuinely injured dogs — every
 test image so far has been a healthy animal, all correctly scored 1. That validation is the next
