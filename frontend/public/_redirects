@@ -1,0 +1,9 @@
+# BrowserRouter means every route is a client-side path with no file behind it.
+# Without this a static host resolves /reports/<id> against the filesystem, finds
+# nothing and 404s — breaking the two links the lost-dog flow depends on: the
+# report link an owner shares, and the manage link that is the only way they can
+# close the report. Serve index.html for everything and let the router decide.
+#
+# Netlify and Render Static read this file; Vercel reads vercel.json. Both are
+# committed so the choice of host stays open.
+/*    /index.html   200

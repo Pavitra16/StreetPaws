@@ -3,6 +3,7 @@ import { connectDB, disconnectDB } from './config/db.js';
 import { assertRequiredEnv, env, featureStatus } from './config/env.js';
 import { ensureIndexes } from './config/indexes.js';
 import { recoverOrphanedJobs } from './jobs/analyzeReport.js';
+import { providerWarning } from './services/paymentService.js';
 
 async function start() {
   // In development we boot even without a database so the UI is workable while
@@ -36,6 +37,22 @@ async function start() {
     if (off.length) {
       console.warn(`[server] not configured (features disabled): ${off.join(', ')}`);
     }
+
+    /**
+     * providerWarning() was written to catch the deploy that records donations
+     * as paid while taking no money — and then nothing ever called it, so it
+     * never fired. Logged here with the other startup diagnostics.
+     *
+     * console.error rather than warn: the case it catches most often is
+     * PAYMENT_PROVIDER set with the key pair left blank, which is what copying
+     * .env.example verbatim produces, and that resolves to demo mode.
+     *
+     * Deliberately not fatal. Demo mode in production is a legitimate state for
+     * a deployment meant to demonstrate the donation flow, and the donor is told
+     * plainly on screen. This has to be loud to the operator, not a boot failure.
+     */
+    const paymentWarning = providerWarning();
+    if (paymentWarning) console.error(`[server] ${paymentWarning}`);
   });
 
   const shutdown = async (signal) => {

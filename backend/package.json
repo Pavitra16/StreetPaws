@@ -4,6 +4,9 @@
   "description": "Street dog rescue platform - API server",
   "main": "src/server.js",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
