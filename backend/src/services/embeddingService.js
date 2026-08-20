@@ -1,5 +1,5 @@
-import { pipeline, env as hfEnv } from '@huggingface/transformers';
 import { buildUrl, ANALYSIS } from '../config/cloudinary.js';
+import { env } from '../config/env.js';
 
 /**
  * CLIP image embeddings, computed locally.
@@ -24,13 +24,23 @@ import { buildUrl, ANALYSIS } from '../config/cloudinary.js';
 const MODEL_ID = 'Xenova/clip-vit-base-patch16';
 export const EMBEDDING_DIM = 512;
 
-hfEnv.allowLocalModels = false; // always resolve from the Hub cache
-
 let extractorPromise = null;
 
-/** Lazily loads the model. Concurrent callers share one download. */
+/**
+ * Lazily loads the model. Concurrent callers share one download.
+ *
+ * The library import is dynamic, not top-of-file: requiring
+ * @huggingface/transformers pulls in the native ONNX runtime, which costs
+ * memory before any model loads. With DISABLE_LOCAL_EMBEDDINGS set the whole
+ * point is that none of that lands in RAM — so nothing here may touch the
+ * package until an embedding is actually wanted.
+ */
 function getExtractor() {
-  extractorPromise ??= pipeline('image-feature-extraction', MODEL_ID).catch((err) => {
+  extractorPromise ??= (async () => {
+    const { pipeline, env: hfEnv } = await import('@huggingface/transformers');
+    hfEnv.allowLocalModels = false; // always resolve from the Hub cache
+    return pipeline('image-feature-extraction', MODEL_ID);
+  })().catch((err) => {
     // Reset so a transient network failure does not poison every later call.
     extractorPromise = null;
     throw err;
@@ -38,7 +48,14 @@ function getExtractor() {
   return extractorPromise;
 }
 
+let disabledLogged = false;
+
 export async function warmUpEmbedder() {
+  // Loud, not null: the only caller is the backfill script, whose entire job
+  // is embeddings. Running it with the flag set is a mistake to surface.
+  if (env.disableLocalEmbeddings) {
+    throw new Error('DISABLE_LOCAL_EMBEDDINGS is set — unset it to run embedding jobs');
+  }
   await getExtractor();
 }
 
@@ -52,6 +69,21 @@ export async function embedImageByPublicId(publicId) {
 }
 
 export async function embedImageByUrl(url) {
+  /**
+   * null, not a throw: every runtime caller (analysis job, match controller,
+   * reanalyze script) already treats a missing embedding as "degrade to the
+   * other signals", and matchService reports the visual signal as null =
+   * "not compared" rather than 0 = "compared and failed". Logged once, not
+   * per call — on a host that sets this flag it would otherwise say the same
+   * thing on every report.
+   */
+  if (env.disableLocalEmbeddings) {
+    if (!disabledLogged) {
+      disabledLogged = true;
+      console.warn('[embed] DISABLE_LOCAL_EMBEDDINGS is set — CLIP never loads, matching runs on attributes + geo + time');
+    }
+    return null;
+  }
   const extractor = await getExtractor();
   const output = await extractor(url, { pooling: 'mean', normalize: true });
   const vector = Array.from(output.data);

@@ -13,6 +13,18 @@ export const env = {
 
   mongodbUri: process.env.MONGODB_URI,
 
+  /**
+   * Skips loading the local CLIP model entirely. For hosts where the ~677 MB
+   * runtime + model cannot fit (Render free tier is 512 MB): an OOM there kills
+   * the process mid-job, recoverOrphanedJobs() re-queues the same report at
+   * boot, and it OOMs again — a crash loop, not a degraded feature. With the
+   * flag set, matching runs on attributes + geo + time, which the eval showed
+   * carry the combined score (see backend/eval/README.md).
+   */
+  disableLocalEmbeddings:
+    process.env.DISABLE_LOCAL_EMBEDDINGS === '1' ||
+    process.env.DISABLE_LOCAL_EMBEDDINGS === 'true',
+
   cloudinary: {
     cloudName: process.env.CLOUDINARY_CLOUD_NAME,
     apiKey: process.env.CLOUDINARY_API_KEY,
@@ -105,5 +117,6 @@ export function featureStatus() {
     stripe: Boolean(env.stripe.secretKey),
     email: Boolean(env.smtp.host && env.smtp.user && env.smtp.pass),
     ollama: Boolean(env.ollama.baseUrl),
+    localEmbeddings: !env.disableLocalEmbeddings,
   };
 }
