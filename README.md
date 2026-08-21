@@ -1,5 +1,7 @@
 # StreetPaws
 
+**Live → [street-paws.vercel.app](https://street-paws.vercel.app)**
+
 Anyone who finds a street dog that is injured, sick or lost can photograph it, drop a pin on the
 exact spot, and have that report reach the nearest verified NGO or independent rescuer within
 seconds — ranked so the bleeding dog is seen before the healthy one.
@@ -128,13 +130,23 @@ without a Gemini key reports simply save unanalysed, without Cloudinary uploads 
 
 ## Status
 
-The rescue loop is complete and working: report → AI triage → geospatial routing → rescuer accepts →
-case tracked to resolution. Adoption and the admin console are built.
+Deployed at **[street-paws.vercel.app](https://street-paws.vercel.app)** — frontend on Vercel, API on
+Render, database on MongoDB Atlas. `GET /api/health` reports which features are live.
 
-Donations run on Razorpay in test mode. `RAZORPAY_WEBHOOK_SECRET` is not set yet, and that is the one
-gap: the signed `/verify` callback marks a donation paid and covers the normal path, but a donor who
-closes the tab between paying and the callback returning has the payment taken and no record written.
-The webhook is the backstop for exactly that case. `GET /api/health` reports the active provider.
+Three things worth knowing before clicking around, all consequences of free hosting:
+
+- **The first request can take up to a minute.** The API instance sleeps when idle and has to wake.
+- **Payments run in Razorpay test mode.** No real card is charged. Razorpay shows its own
+  success/failure chooser after the card form, so both outcomes can be exercised.
+- **CLIP embeddings are disabled on the deployed instance** (`DISABLE_LOCAL_EMBEDDINGS=1`) — 512 MB
+  will not hold the model. Photo matching still runs, scoring on attributes, location and time,
+  which the eval above showed are what carry the combined score. Run it locally for the visual
+  signal.
+
+The rescue loop is complete and working: report → AI triage → geospatial routing → rescuer accepts →
+case tracked to resolution. Adoption, the admin console and donations are built. The Razorpay
+webhook is configured and its signature verified end to end, so a donor who closes the tab
+mid-payment still has the donation recorded.
 
 Triage urgency has not yet been validated against a labelled set of genuinely injured dogs — every
 test image so far has been a healthy animal, all correctly scored 1. That validation is the next
